@@ -11,6 +11,6 @@ def get_correspondence_from_file(file):
     pts_2 = []
     for x in f:
         correspondence = [float(coor) for coor in x.split(" ")]
-        pts_1.append((correspondence[0], correspondence[1]))
-        pts_2.append((correspondence[2], correspondence[3]))
-    return pts_1, pts_2
+        pts_1.append((correspondence[0], correspondence[1], 1))
+        pts_2.append((correspondence[2], correspondence[3], 1))
+    return np.array(pts_1), np.array(pts_2)
