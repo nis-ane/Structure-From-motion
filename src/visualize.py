@@ -1,6 +1,10 @@
 import trimesh
 import numpy as np
 
+view_angle = [0, 0, np.pi]
+distance = 5
+cam_center = [0, 0, 5]
+
 
 def get_poses_obj(poses, size=0.1):
     objects = []
@@ -41,13 +45,15 @@ def visualise_pose_and_3d_points(poses, pointcloud, colors=None):
     scene.add_geometry(trimesh.PointCloud(vertices=pointcloud, colors=colors))
     scene.add_geometry(poses_obj)
     scene.add_geometry(trimesh.creation.axis(axis_length=0.4))
+    scene.set_camera(angles=view_angle, distance=distance, center=cam_center)
     scene.show()
 
 
-def visualise_3d_points(points_3d):
+def visualise_3d_points(points_3d, colors=None):
     scene = trimesh.Scene()
-    scene.add_geometry(trimesh.PointCloud(vertices=points_3d))
+    scene.add_geometry(trimesh.PointCloud(vertices=points_3d, colors=colors))
     scene.add_geometry(trimesh.creation.axis(axis_length=0.4))
+    scene.set_camera(angles=view_angle, distance=distance, center=cam_center)
     scene.show()
 
 
@@ -56,6 +62,7 @@ def visualise_poses(poses):
     scene = trimesh.Scene()
     scene.add_geometry(poses_obj)
     scene.add_geometry(trimesh.creation.axis(axis_length=0.4))
+    scene.set_camera(angles=view_angle, distance=distance, center=cam_center)
     scene.show()
 
 
