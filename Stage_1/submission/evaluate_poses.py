@@ -1,6 +1,7 @@
 import numpy as np
 import json
 
+
 def compute_transformation_error(t1, t2):
     eps = 1e-6
 
@@ -18,6 +19,7 @@ def compute_transformation_error(t1, t2):
 
     return (rot_error, tr_error)
 
+
 def pose_estimate(d1, d2):
     total_error_rotation = 0.0
     total_error_translation = 0.0
@@ -25,8 +27,8 @@ def pose_estimate(d1, d2):
     keys = d1.keys()
 
     for camera in keys:
-        transform1 = np.array(d1[camera], dtype = np.float32)
-        transform2 = np.array(d2[camera], dtype = np.float32)
+        transform1 = np.array(d1[camera], dtype=np.float32)
+        transform2 = np.array(d2[camera], dtype=np.float32)
 
         rot_err, tr_err = compute_transformation_error(transform1, transform2)
 
@@ -46,10 +48,9 @@ if __name__ == "__main__":
     camera_param_gt = json.load(f_gt)
     camera_param_predicted = json.load(f_predicted)
 
-    rotation_error, translation_error = pose_estimate(camera_param_gt["extrinsics"], camera_param_predicted["extrinsics"])
+    rotation_error, translation_error = pose_estimate(
+        camera_param_gt["extrinsics"], camera_param_predicted["extrinsics"]
+    )
 
     print("Rotation error:", round(rotation_error, 2))
     print("Translation error:", round(translation_error, 3))
-
-
-
