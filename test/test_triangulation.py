@@ -1,5 +1,6 @@
 import numpy as np
 from src.triangulation import triangulate_pts
+from src.utils import project_3D_to_2D
 
 
 def test_traingulation_using_crafted_data():
@@ -19,11 +20,8 @@ def test_traingulation_using_crafted_data():
     )
 
     X = np.array([[0, 5, 2, 1], [2, 5, 2, 1]])
-    x1 = np.dot(P1, X.T)
-    x1 = (x1 / x1[-1]).T
-
-    x2 = np.dot(P2, X.T)
-    x2 = (x2 / x2[-1]).T
+    x1 = project_3D_to_2D(X, P1)
+    x2 = project_3D_to_2D(X, P2)
 
     Xh = triangulate_pts(x1, x2, P1, P2)
 
