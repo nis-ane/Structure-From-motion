@@ -1,12 +1,12 @@
 import trimesh
 import numpy as np
 
-view_angle = [0, 0, np.pi]
+view_angle = [0, 0, 0]
 distance = 5
 cam_center = [0, 0, 5]
 
 
-def get_poses_obj(poses, size=0.1):
+def get_poses_obj(poses, size=0.1, color=[0.0, 0.0, 0.0, 1.0]):
     objects = []
 
     for pose in poses:
@@ -34,7 +34,11 @@ def get_poses_obj(poses, size=0.1):
                 [pos, o],
             ]
         )
-        segs = trimesh.load_path(segs)
+
+        segs_temp = trimesh.load_path(segs)  # , colors = colors)
+        colors = np.tile(np.array(color), (len(segs_temp.entities), 1))
+        segs = trimesh.load_path(segs, colors=colors)
+        print()
         objects.append(segs)
     return objects
 
@@ -57,13 +61,82 @@ def visualise_3d_points(points_3d, colors=None):
     scene.show()
 
 
-def visualise_poses(poses):
-    poses_obj = get_poses_obj(poses)
+def visualise_poses(poses, color=[0.0, 0.0, 0.0, 1.0]):
+    poses_obj = get_poses_obj(poses, color=color)
     scene = trimesh.Scene()
     scene.add_geometry(poses_obj)
     scene.add_geometry(trimesh.creation.axis(axis_length=0.4))
     scene.set_camera(angles=view_angle, distance=distance, center=cam_center)
     scene.show()
+
+
+def visualise_poses_and_3d_points_with_gt(
+    poses, pointcloud, cam_parameters, n=None, colors=None
+):
+    poses_dict = cam_parameters["extrinsics"]
+    sorted_poses_dict = dict(sorted(poses_dict.items()))
+    count = 1
+    poses_gt = []
+    for _, value in sorted_poses_dict.items():
+        RT = np.array(value)[:3, :]
+        poses_gt.append(RT)
+        if n is None:
+            continue
+        count = count + 1
+        if count > n:
+            break
+
+    poses_obj = get_poses_obj(poses, color=[0.0, 0.0, 0.0, 1.0])
+    poses_gt_obj = get_poses_obj(poses_gt, color=[0.0, 1.0, 0.0, 1.0])
+    scene = trimesh.Scene()
+    scene.add_geometry(poses_obj)
+    scene.add_geometry(poses_gt_obj)
+    scene.add_geometry(trimesh.PointCloud(vertices=pointcloud, colors=colors))
+    scene.add_geometry(poses_obj)
+    scene.add_geometry(trimesh.creation.axis(axis_length=0.4))
+    scene.set_camera(angles=view_angle, distance=distance, center=cam_center)
+    scene.show()
+
+
+def visualise_poses_with_gt(poses, cam_parameters, n=None):
+    poses_dict = cam_parameters["extrinsics"]
+    sorted_poses_dict = dict(sorted(poses_dict.items()))
+    count = 1
+    poses_gt = []
+    for _, value in sorted_poses_dict.items():
+        RT = np.array(value)[:3, :]
+        poses_gt.append(RT)
+        if n is None:
+            continue
+        count = count + 1
+        if count > n:
+            break
+
+    poses_obj = get_poses_obj(poses, color=[0.0, 0.0, 0.0, 1.0])
+    poses_gt_obj = get_poses_obj(poses_gt, color=[0.0, 1.0, 0.0, 1.0])
+    scene = trimesh.Scene()
+    scene.add_geometry(poses_obj)
+    scene.add_geometry(poses_gt_obj)
+    scene.add_geometry(trimesh.creation.axis(axis_length=0.4))
+    scene.set_camera(angles=view_angle, distance=distance, center=cam_center)
+    scene.show()
+
+
+def visualise_gt_poses(cam_parameters, n=None):
+    poses_dict = cam_parameters["extrinsics"]
+    sorted_poses_dict = dict(sorted(poses_dict.items()))
+    count = 1
+    poses = []
+    for _, value in sorted_poses_dict.items():
+        RT = np.array(value)[:3, :]
+        poses.append(RT)
+        if n is None:
+            continue
+        count = count + 1
+        if count > n:
+            break
+
+    visualise_poses(poses, color=[0.0, 1.0, 0.0, 1.0])
 
 
 if __name__ == "__main__":
