@@ -1,10 +1,3 @@
-"""
-This module contains code for
-1. Estimation of essential matrix
-2. Decompositon of Essential Matrix to R and T
-3. Resolve the ambiguity of R and T decomposed from Essential Matrix
-"""
-
 import os
 import cv2
 import numpy as np
@@ -28,12 +21,8 @@ class EssentialMatrixEstimation:
         normalized_points_homogeneous = np.dot(points_homogeneous, np.linalg.inv(intrinsics).T)
         normalized_points = normalized_points_homogeneous[:, :2] / normalized_points_homogeneous[:, 2, np.newaxis]
         return normalized_points
-    
+
     def calculate_essential_matrix(self, points1, points2):
-
-        # points1 = self.normalize_points(points1, K)
-        # points2 = self.normalize_points(points2, K)
-
         # Convert to homogeneous coordinates
         points1 = np.hstack((points1, np.ones((points1.shape[0], 1))))
         points2 = np.hstack((points2, np.ones((points2.shape[0], 1))))
@@ -47,13 +36,11 @@ class EssentialMatrixEstimation:
         _, _, V = np.linalg.svd(A)
         E = V[-1].reshape(3, 3)
 
-        # Enforce the rank-2 constraint on F
-        U, S, Vt = np.linalg.svd(E)
-        # S[2] = 0
-        E = np.dot(U, np.dot(np.diag([1,1,0]), Vt))
+        # Enforce the rank-2 constraint on E
+        U, _, Vt = np.linalg.svd(E)
+        E = np.dot(U, np.dot(np.diag([1, 1, 0]), Vt))
 
         return E
-
 
     def calculate_essential_matrix_ransac(self, points1, points2, iterations=1000, threshold=1e-3):
         np.random.seed(0)
@@ -110,7 +97,6 @@ class EssentialMatrixEstimation:
 
         return E
 
-        
     def calculate_transformation_matrix(self, points):
         # Calculate the center of mass of the points
         center = np.mean(points, axis=0)
@@ -123,12 +109,11 @@ class EssentialMatrixEstimation:
 
         # Construct the transformation matrix
         T = np.array([[1/scale, 0, -center[0]/scale],
-                    [0, 1/scale, -center[1]/scale],
-                    [0, 0, 1]])
+                      [0, 1/scale, -center[1]/scale],
+                      [0, 0, 1]])
 
         return T
 
-    # Decompose the essential matrix
     def decompose_essential_matrix(self, E):
         # Compute SVD of E
         U, _, Vt = np.linalg.svd(E)
@@ -154,34 +139,41 @@ class EssentialMatrixEstimation:
         # Reshape t to be a column vector
         t = t.reshape(3, 1)
 
-        R, t = self.enforce_positive_depth(R, t, self.points1, self.points2)
+        # Enforce positive depth using cheirality condition
+        R, t = self.enforce_cheirality_condition(R, t)
 
         return R, t
 
-    def enforce_positive_depth(self, R, t, points1, points2):
-        # Calculate the camera centers
-        C1 = np.zeros((3, 1))
-        C2 = -np.dot(R.T, t)
+    def enforce_cheirality_condition(self, R, t):
+        max_positive_depth_count = 0
+        best_R = R
+        best_t = t
 
-        # Calculate the 3D points
-        X = triangulate_pts(points1, points2, np.eye(3, 4), np.hstack((R, t)))
+        for sign in [1, -1]:  # Try both signs for the translation vector
+            t_candidate = sign * t
+            C2 = -np.dot(R.T, t_candidate.flatten())
 
-        X = X[:, :3] / X[:, 3:]
+            X = triangulate_pts(self.points1, self.points2, np.eye(3, 4), np.hstack((R, t_candidate)))
 
-        # Calculate the depth of the 3D points
-        C1 = C1.reshape(1, 3)
-        depth1 = np.dot(R[2], (X - C1).T)
+            X = X[:, :3] / X[:, 3:]
 
-        C2 = C2.reshape(1, 3)
-        depth2 = np.dot(R[2], (X - C2).T)
-        
+            # Ensure the correct shapes for the dot product
+            C1 = np.zeros_like(X)
+            depth_condition = np.dot(X - C1, R[2]) > 0
 
-        # If the depth is negative, flip the sign of the translation vector
-        if np.sum(depth1 < 0) > np.sum(depth2 < 0):
-            t = -t
+            # Ensure the correct shapes for the dot product
+            C2 = np.zeros_like(X)
+            depth_condition &= np.dot(X - C2, R[2]) > 0
 
-        return R, t
-    
+            positive_depth_count = np.sum(depth_condition)
+
+            if positive_depth_count > max_positive_depth_count:
+                max_positive_depth_count = positive_depth_count
+                best_R = R
+                best_t = t_candidate
+
+        return best_R, best_t
+
     def visualize_results(self, R, t):
         # Create the projection matrices
         P_R_t = np.vstack((np.hstack((R, t)), [0, 0, 0, 1]))
@@ -199,28 +191,19 @@ class EssentialMatrixEstimation:
         RT1 = np.eye(4)[:3, :]
         RT2 = P_R_t
 
-        # Read the second image
-        # img2 = cv2.imread(image_path)
-        # img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
-
         # Triangulate points
         X = triangulate_pts(self.points1, self.points2, P1, P2)
 
         print("X:", X[2, :])
 
-        # Extract colors
-        # colors = [img2[int(v)][int(u)] for (u, v, w) in self.points2]
-
         # Visualize 3D points and camera poses
         visualise_pose_and_3d_points([RT1, RT2], X[:, :3])
 
     def run(self):
-        # Normalize 2D points
-        # points1_normalized = self.normalize_points(self.points1, self.K)
-        # points2_normalized = self.normalize_points(self.points2, self.K)
 
         # Calculate essential matrix
         E = self.calculate_normalized_essential_matrix(self.points1, self.points2, self.K)
+        # print("Essential Matrix:", E)
 
         # Decompose the essential matrix
         R, t = self.decompose_essential_matrix(E)
@@ -228,13 +211,33 @@ class EssentialMatrixEstimation:
         # Visualize the results
         self.visualize_results(R, t)
 
+# def normalize_points(points, intrinsics):
+#     # Normalize 2D points
+#     points = points[:, :2]
+#     points_homogeneous = np.concatenate((points, np.ones((len(points), 1))), axis=1)
+#     normalized_points_homogeneous = np.dot(points_homogeneous, np.linalg.inv(intrinsics).T)
+#     normalized_points = normalized_points_homogeneous[:, :2] / normalized_points_homogeneous[:, 2, np.newaxis]
+#     return normalized_points
+
+
 def main():
-    correspondences_file = '/Users/hewanshrestha/Desktop/3dcv_project/Stage_1/submission/box/correspondences/53_88.txt'
-    intrinsics_file = '/Users/hewanshrestha/Desktop/3dcv_project/Stage_1/submission/box/gt_camera_parameters.json'
+    correspondences_file = r'C:\Users\Hewan Shrestha\Desktop\Hewan\3dcv_project\stage1\box\correspondences\66_46.txt'
+    intrinsics_file = r'C:\Users\Hewan Shrestha\Desktop\Hewan\3dcv_project\stage1\box\gt_camera_parameters.json'
     
     essential_matrix_estimator = EssentialMatrixEstimation(correspondences_file, intrinsics_file)
     # Run the estimation and decomposition
     essential_matrix_estimator.run()
+
+    # points1_cv, points2_cv = get_correspondence_from_file(correspondences_file)
+    # with open(intrinsics_file, 'r') as f:
+    #     intrinsics_data = json.load(f)
+    # K = np.array(intrinsics_data['intrinsics'])
+
+    # points1_cv = normalize_points(points1_cv, K)
+    # points2_cv = normalize_points(points2_cv, K)
+
+    # E_cv, mask = cv2.findEssentialMat(points1_cv, points2_cv, essential_matrix_estimator.K, method=cv2.RANSAC, prob=0.999, threshold=1e-3)
+    # print("Essential Matrix from OpenCV:", E_cv)
 
 if __name__ == "__main__":
     main()
