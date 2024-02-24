@@ -11,6 +11,7 @@ from src.pose_estimation import (
     estimate_pose_Linear_PnP_RANSAC,
     estimate_pose_Linear_PnP,
 )
+from src.correspondence import get_3d_to_2d_correspondence
 from src.visualize import *
 import cv2
 
@@ -28,34 +29,61 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
     K = np.array(cam_parameters["intrinsics"])
     is_first = True
     prev_image_idx = None
-    for image_name in sorted(os.listdir(image_folder)):
+    x1_prev = None
+    X = None
+    poses = []
+
+    for frame_n, image_name in enumerate(sorted(os.listdir(image_folder))):
         image_idx = int(image_name.split(".")[0])
         if is_first:
             prev_image_idx = image_idx
             is_first = False
-            # RT1 = np.array(cam_parameters["extrinsics"][image_name])[:3, :]
             RT1 = np.hstack((np.eye(3), np.zeros((3, 1))))
-            P1 = np.dot(K, RT1)
+            P_prev = np.dot(K, RT1)
+            poses.append(RT1)
         else:
             curr_image_idx = image_idx
-            RT2 = np.array(cam_parameters["extrinsics"][image_name])[:3, :]
-            P2 = np.dot(K, RT2)
             correspondence_file_name = f"{prev_image_idx}_{curr_image_idx}.txt"
             correspondence_file_path = os.path.join(
                 correspondence_folder, correspondence_file_name
             )
-            x1, x2 = get_correspondence_from_file(correspondence_file_path)
+            x1_curr, x2_curr = get_correspondence_from_file(correspondence_file_path)
             img2 = cv2.imread(os.path.join(image_folder, image_name))
             img2 = cv2.cvtColor(img2, cv2.COLOR_BGR2RGB)
-            colors = [img2[int(v)][int(u)] for (u, v, _) in x2]
-            X = triangulate_pts(x1, x2, P1, P2)
-            R, T, _ = estimate_pose_Linear_PnP_RANSAC(x2, X, K)
-            RT_e = np.hstack((R, T))
+            colors = [img2[int(v)][int(u)] for (u, v, _) in x2_curr]
+
+            if X is None:
+                RT_curr = np.array(cam_parameters["extrinsics"][image_name])[
+                    :3, :
+                ]  # This will be replaced by below line.
+                # RT_curr = estimate_pose_Essential_mat()
+                P_curr = np.dot(K, RT_curr)
+                poses.append(RT_curr)
+                X = triangulate_pts(x1_curr, x2_curr, P_prev, P_curr)
+
+            else:
+                X_f, x2_f = get_3d_to_2d_correspondence(X, x1_prev, x1_curr, x2_curr)
+                assert len(X_f) > 40
+                R, T, _ = estimate_pose_Linear_PnP_RANSAC(x2_f, X_f, K)
+                RT_curr = np.hstack((R, T))
+                P_curr = np.dot(K, RT_curr)
+                poses.append(RT_curr)
+                X = triangulate_pts(x1_curr, x2_curr, P_prev, P_curr)
+                # OPtimize X R and T using bundle adjustment
+
             visualise_poses_and_3d_points_with_gt(
-                [RT1, RT_e], X[:, :3], cam_parameters, n=2, colors=colors
+                poses, X[:, :3], cam_parameters, n=frame_n + 1, colors=colors
             )
-            # visualise_pose_and_3d_points([RT1, RT2, RT_e], X[:, :3], colors)
-            break
+            # visualise_poses_with_gt(
+            #         poses, cam_parameters, n=frame_n+2
+            #     )  # to visualize without 3d points for computational efficiency.
+
+            # visualise_gt_poses(cam_parameters) # To visulaize all gt poses
+            x1_prev = x2_curr
+            P_prev = P_curr
+            prev_image_idx = curr_image_idx
+            if frame_n > 5:
+                break
 
 
 if __name__ == "__main__":
@@ -77,7 +105,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    root_folder = f"./Stage_{args.stage}/submission"
+    root_folder = f"./Stage_{args.stage}/stage1"
     dataset_folder = os.path.join(root_folder, args.dataset)
     assert os.path.exists(
         dataset_folder
