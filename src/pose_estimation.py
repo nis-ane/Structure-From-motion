@@ -28,6 +28,17 @@ def decompose_projection_mat(P, K):
     return R_c, T_c
 
 
+def estimate_pose_Essential_Matrix(frame_1, frame_2):
+
+    # x1 = frame_1.keypoints[frame_1.matched_idx] -> correspondence
+    # x2 = frame_2.keypoints[frame_2.matched_idx] -> correspondence
+    # E = Estimate_essentialmat_(x1,x2, frame_1.K)
+    # R,T = decompose RT (E)
+    # return R, T
+
+    return np.eye(3), np.zeros((3, 1))
+
+
 def estimate_pose_Linear_PnP(x, X, K):
     assert len(x) == len(X)
     A = np.zeros((0, 12))
@@ -76,6 +87,7 @@ def estimate_pose_Linear_PnP_n(x, X, K):
 
 
 def estimate_pose_Linear_PnP_RANSAC(x, X, K, threshold=5.0):
+
     best_inliers = []
 
     for _ in range(200):
@@ -110,3 +122,11 @@ def estimate_pose_Linear_PnP_RANSAC(x, X, K, threshold=5.0):
     )
 
     return refined_R, refined_T, len(best_inliers)
+
+
+def estimate_pose_3d_2d_mapping(map_, frame_curr):
+    idx_3d = frame_curr.index_kp_3d
+    X = map_.X[idx_3d]
+    x = frame_curr.keypoints[np.array(frame_curr.matched_idx)[frame_curr.intersect_idx]]
+    R, T = estimate_pose_Linear_PnP(x, X, frame_curr.K)
+    return R, T

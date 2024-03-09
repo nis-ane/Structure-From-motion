@@ -1,9 +1,9 @@
 import trimesh
 import numpy as np
 
-view_angle = [0, 0, 0]
+view_angle = [0, 0, 0.1]
 distance = 5
-cam_center = [0, 0, 5]
+cam_center = [0, 0, 0]
 
 
 def get_poses_obj(poses, size=0.1, color=[0.0, 0.0, 0.0, 1.0]):
