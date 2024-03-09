@@ -221,8 +221,8 @@ class EssentialMatrixEstimation:
 
 
 def main():
-    correspondences_file = r'C:\Users\Hewan Shrestha\Desktop\Hewan\3dcv_project\stage1\box\correspondences\66_46.txt'
-    intrinsics_file = r'C:\Users\Hewan Shrestha\Desktop\Hewan\3dcv_project\stage1\box\gt_camera_parameters.json'
+    correspondences_file = '/Users/hewanshrestha/Desktop/3dcv_project/stage1/box/correspondences/57_99.txt'
+    intrinsics_file = '/Users/hewanshrestha/Desktop/3dcv_project/stage1/box/gt_camera_parameters.json'
     
     essential_matrix_estimator = EssentialMatrixEstimation(correspondences_file, intrinsics_file)
     # Run the estimation and decomposition
