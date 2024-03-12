@@ -1,7 +1,10 @@
 import trimesh
 import numpy as np
+import matplotlib.pyplot as plt
+from src.utils import *
+import cv2
 
-view_angle = [0, 0, 0.1]
+view_angle = [0, 0, -1]
 distance = 5
 cam_center = [0, 0, 0]
 
@@ -89,11 +92,10 @@ def visualise_poses_and_3d_points_with_gt(
     poses_obj = get_poses_obj(poses, color=[0.0, 0.0, 0.0, 1.0])
     poses_gt_obj = get_poses_obj(poses_gt, color=[0.0, 1.0, 0.0, 1.0])
     scene = trimesh.Scene()
+    scene.add_geometry(trimesh.creation.axis(axis_length=0.4))
     scene.add_geometry(poses_gt_obj)
     scene.add_geometry(poses_obj)
     scene.add_geometry(trimesh.PointCloud(vertices=pointcloud, colors=colors))
-    scene.add_geometry(poses_obj)
-    scene.add_geometry(trimesh.creation.axis(axis_length=0.4))
     scene.set_camera(angles=view_angle, distance=distance, center=cam_center)
     scene.show()
 
@@ -137,6 +139,32 @@ def visualise_gt_poses(cam_parameters, n=None):
             break
 
     visualise_poses(poses, color=[0.0, 1.0, 0.0, 1.0])
+
+
+def visualize_correspondences(frame_1, frame_2):
+    matching_result = cv2.drawMatches(
+        frame_1.image,
+        frame_1.keypoints,
+        frame_2.image,
+        frame_2.keypoints,
+        matches,
+        None,
+        flags=2,
+    )
+    pass
+
+
+def visualize_reprojection_error(frame, map_):
+    X = map_.X[frame.index_kp_3d]
+    x_proj = project_3D_to_2D(X, frame.P)
+    x_proj[:, 0] = np.clip(x_proj[:, 0], 0, frame.image.shape[1])
+    x_proj[:, 1] = np.clip(x_proj[:, 1], 0, frame.image.shape[0])
+    x = frame.keypoints[frame.triangulated_idx]
+    print(x[:, 0].shape, x[:, 1].shape)
+    plt.imshow(frame.image)
+    plt.scatter(x[:, 0], x[:, 1], marker="x", c="#1f77b4")
+    plt.scatter(x_proj[:, 0], x_proj[:, 1], marker="x", c="#ff7f0e")
+    plt.show()
 
 
 if __name__ == "__main__":

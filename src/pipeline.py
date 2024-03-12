@@ -7,7 +7,10 @@ import os
 import json
 from src.utils import *
 from src.triangulation import triangulate_pts
-from src.pose_estimation import estimate_pose_3d_2d_mapping
+from src.pose_estimation import (
+    estimate_pose_3d_2d_mapping,
+    estimate_pose_Essential_Matrix,
+)
 from src.correspondence import (
     get_3d_to_2d_correspondence,
     get_2d_to_2d_correspondence,
@@ -47,13 +50,17 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
         # Initilization of first frame(Also the reference frame). This camera is to be in the origin.
         if is_first:
             frame_prev = Frame(image, image_idx, K, correspondence=correspondence)
-            RT_curr = np.array(cam_parameters["extrinsics"][image_name])[:3, :]
-            R = RT_curr[:3, :3]
-            T = RT_curr[:3, 3:4]
-            frame_prev.T = T  # Initialize the translation to be zero. The camera center is in origin
-            frame_prev.R = R
-            # frame_prev.T = np.zeros((3,1))              # Initialize the translation to be zero. The camera center is in origin
-            # frame_prev.R = np.eye(3)                    # Initilize the rotation to be identity. Aligned with the axes.
+            # RT_curr = np.array(cam_parameters["extrinsics"][image_name])[:3, :]
+            # R = RT_curr[:3, :3]
+            # T = RT_curr[:3, 3:4]
+            # frame_prev.T = T  # Initialize the translation to be zero. The camera center is in origin
+            # frame_prev.R = R
+            frame_prev.T = np.zeros(
+                (3, 1)
+            )  # Initialize the translation to be zero. The camera center is in origin
+            frame_prev.R = np.eye(
+                3
+            )  # Initilize the rotation to be identity. Aligned with the axes.
             frame_prev.compute_projection_matrix()  # Computes projection matrix with above R and T
             frames.append(frame_prev)
             is_first = False
@@ -85,10 +92,12 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
             if (
                 len(map_.X) == 0 or len(frame_curr.intersect_idx) < 6
             ):  # Atleast 6 correspondence is required for Linear PnP algorithm
-                RT_curr = np.array(cam_parameters["extrinsics"][image_name])[:3, :]
-                R = RT_curr[:3, :3]
-                T = RT_curr[:3, 3:4]
-                # R, T = estimate_pose_Essential_Matrix(frame_prev, frame_curr)   # When there is no map or match is less than 6 we go to 2d-2d estimation.
+                # RT_curr = np.array(cam_parameters["extrinsics"][image_name])[:3, :]
+                # R = RT_curr[:3, :3]
+                # T = RT_curr[:3, 3:4]
+                R, T = estimate_pose_Essential_Matrix(
+                    frame_prev, frame_curr
+                )  # When there is no map or match is less than 6 we go to 2d-2d estimation.
                 # frame_curr.R = np.dot(frame_prev.R, R)                          # Since 2D-2D gives relative rotation and Translation with respect to first frame.
                 # frame_curr.T = np.add(frame_prev.T, T)
 
@@ -96,7 +105,7 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
                     R  # 3D-2D correspondence gives absolute Rotation and Translation.
                 )
                 frame_curr.T = T
-                # print(frame_curr.R, frame_curr.T)
+                print(frame_curr.R, frame_curr.T)
 
                 frame_curr.compute_projection_matrix()
                 # print("RT:",frame_curr.RT, frame_prev.RT)
@@ -117,17 +126,18 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
                 frames.append(frame_curr)
 
             else:
-                # R, T = estimate_pose_3d_2d_mapping(map_, frame_curr)        # Estimates R and T using 3D-2D correspondences.
-                RT_curr = np.array(cam_parameters["extrinsics"][image_name])[:3, :]
-                R = RT_curr[:3, :3]
-                T = RT_curr[:3, 3:4]
+                R, T = estimate_pose_3d_2d_mapping(
+                    map_, frame_curr
+                )  # Estimates R and T using 3D-2D correspondences.
+                # RT_curr = np.array(cam_parameters["extrinsics"][image_name])[:3, :]
+                # R = RT_curr[:3, :3]
+                # T = RT_curr[:3, 3:4]
                 frame_curr.R = (
                     R  # 3D-2D correspondence gives absolute Rotation and Translation.
                 )
                 frame_curr.T = T
                 # print(frame_curr.R, frame_curr.T)
                 frame_curr.compute_projection_matrix()
-                frames.append(frame_curr)
                 X = triangulate_pts(
                     x_prev[frame_prev.disjoint_idx],
                     x_curr[frame_curr.disjoint_idx],
@@ -147,9 +157,24 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
                 frames, map_, frame_n - 1
             )  # Use bundle Adjustment to optimize the frames and map.
             frame_prev = frames[-1]  # Update prev frame for next Iteration
-            # visualise_poses_and_3d_points_with_gt(
-            #     [frame.RT for frame in frames], map_.X[:, :3], cam_parameters, n=frame_n + 1, colors=map_.color
-            # )
+            visualise_poses_with_gt(
+                [frame.RT for frame in frames], cam_parameters, n=2
+            )  #
+            visualise_poses_and_3d_points_with_gt(
+                [frame.RT for frame in frames],
+                map_.X[:, :3],
+                cam_parameters,
+                n=2,
+                colors=map_.color,
+            )
+            # print("Number of frames:",len(frames))
+            # for frame in frames:
+            #     print(frame.RT)
+            # visualise_poses_with_gt(
+            #         [frame.RT for frame in frames], cam_parameters, n=2
+            #     )  # to visualize without 3d points for computational efficiency.
+            break
+            # visualise_gt_poses(cam_parameters)
             if frame_n > 3:
                 break
 
@@ -243,7 +268,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    root_folder = f"./Stage_{args.stage}/stage1"
+    root_folder = f"./Stage_1/stage{args.stage}"
     dataset_folder = os.path.join(root_folder, args.dataset)
     assert os.path.exists(
         dataset_folder

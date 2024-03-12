@@ -5,6 +5,7 @@ This script should implement the estimation of initial pose for frame
 """
 from src.utils import *
 from src.visualize import *
+from src.essential_mat import recover_pose_using_Essential_Mat
 import numpy as np
 
 
@@ -29,14 +30,12 @@ def decompose_projection_mat(P, K):
 
 
 def estimate_pose_Essential_Matrix(frame_1, frame_2):
+    points_1 = frame_1.keypoints[frame_1.matched_idx]
+    points_2 = frame_2.keypoints[frame_2.matched_idx]
 
-    # x1 = frame_1.keypoints[frame_1.matched_idx] -> correspondence
-    # x2 = frame_2.keypoints[frame_2.matched_idx] -> correspondence
-    # E = Estimate_essentialmat_(x1,x2, frame_1.K)
-    # R,T = decompose RT (E)
-    # return R, T
+    R, T = recover_pose_using_Essential_Mat(points_1, points_2, frame_1.K)
 
-    return np.eye(3), np.zeros((3, 1))
+    return R, T
 
 
 def estimate_pose_Linear_PnP(x, X, K):
