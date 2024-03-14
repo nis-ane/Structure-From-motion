@@ -1,1 +1,7 @@
 
+[submodule "external/g2o"]
+	path = external/g2o
+	url = https://github.com/uoip/g2opy.git
+[submodule "external/g2opy"]
+	path = external/g2opy
+	url = https://github.com/uoip/g2opy.git
