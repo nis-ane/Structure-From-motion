@@ -17,7 +17,7 @@ class Frame:
         self.K = K
         self.R = None
         self.T = None
-        self.center = None
+        self.C = None
         self.RT = None
         self.P = None
         self.correspondence = correspondence
@@ -48,6 +48,7 @@ class Frame:
         self.keypoints = np.array(keypoints_coor, dtype=np.float32)
 
     def compute_projection_matrix(self):
+        self.C = -np.dot(self.R.T, self.T)
         self.RT = np.hstack((self.R, self.T))
         self.P = np.dot(self.K, self.RT)
 

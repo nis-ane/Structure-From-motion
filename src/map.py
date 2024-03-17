@@ -27,3 +27,17 @@ def register_frames_with_map(frame_prev, frame_curr, map_, X):
     frame_curr.index_kp_3d = frame_curr.index_kp_3d + list(
         range(len(map_.X), len(map_.X) + len(X))
     )
+
+
+# def register_frames_with_map(frame_prev, frame_curr, map_, X):
+#     frame_prev.triangulated_idx = frame_prev.triangulated_idx + list(
+#         frame_prev.disjoint_idx)
+#     frame_curr.triangulated_idx = frame_curr.triangulated_idx + list(frame_curr.matched_idx)
+
+#     assert len(frame_prev.disjoint_idx) == len(X)
+#     frame_prev.index_kp_3d = frame_prev.index_kp_3d + list(
+#         range(len(map_.X), len(map_.X) + len(X))
+#     )
+#     frame_curr.index_kp_3d = frame_curr.index_kp_3d + list(
+#         range(len(map_.X), len(map_.X) + len(X))
+#     )

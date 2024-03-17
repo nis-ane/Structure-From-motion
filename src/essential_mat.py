@@ -106,13 +106,19 @@ def decompose_essential_matrix(E):
     # Ensure it's a right-handed coordinate system
     if np.linalg.det(np.dot(U, Vt)) < 0:
         Vt = -Vt
+    # if np.linalg.det(U) < 0:
+    #     U *= -1
+    # if np.linalg.det(Vt) < 0:
+    #     Vt *= -1
 
     # Compute rotation matrix
     W = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
     R1 = np.dot(np.dot(U, W), Vt)
     R2 = np.dot(np.dot(U, W.T), Vt)
 
-    # If the determinant of R is -1, flip the sign of the rotation matrix
+    # assert np.linalg.det(R1) == 1
+    # assert np.linalg.det(R2) == 1
+    # # If the determinant of R is -1, flip the sign of the rotation matrix
     if np.linalg.det(R1) < 0:
         R1 = -R1
     if np.linalg.det(R2) < 0:

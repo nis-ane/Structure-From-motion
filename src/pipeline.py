@@ -43,6 +43,7 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
         correspondence = False
 
     for frame_n, image_name in enumerate(sorted(os.listdir(image_folder))):
+        print(image_name)
         image_idx = int(image_name.split(".")[0])
         image = cv2.imread(os.path.join(image_folder, image_name))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -55,11 +56,13 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
             # T = RT_curr[:3, 3:4]
             # frame_prev.T = T  # Initialize the translation to be zero. The camera center is in origin
             # frame_prev.R = R
-            frame_prev.T = np.zeros(
-                (3, 1)
+            R_error_matrix = np.random.rand(3, 3) * 1e-8
+            T_error_matrix = np.random.rand(3, 1) * 1e-8
+            frame_prev.T = (
+                np.zeros((3, 1)) + T_error_matrix
             )  # Initialize the translation to be zero. The camera center is in origin
-            frame_prev.R = np.eye(
-                3
+            frame_prev.R = (
+                np.eye(3) + R_error_matrix
             )  # Initilize the rotation to be identity. Aligned with the axes.
             frame_prev.compute_projection_matrix()  # Computes projection matrix with above R and T
             frames.append(frame_prev)
@@ -67,13 +70,27 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
 
         else:
             frame_curr = Frame(image, image_idx, K, correspondence=correspondence)
+
             if correspondence_folder:  # Stage 1 when correspondence is provided
                 correspondence_file_name = (
                     f"{frame_prev.img_id}_{frame_curr.img_id}.txt"
                 )
+
                 correspondence_file_path = os.path.join(
                     correspondence_folder, correspondence_file_name
                 )
+
+                updated_prev_idx = -2
+                while not os.path.exists(correspondence_file_path):
+                    frame_prev = frames[updated_prev_idx]
+                    correspondence_file_name = (
+                        f"{frame_prev.img_id}_{frame_curr.img_id}.txt"
+                    )
+                    correspondence_file_path = os.path.join(
+                        correspondence_folder, correspondence_file_name
+                    )
+                    updated_prev_idx -= 1
+                print(correspondence_file_name)
                 x_prev, x_curr = get_correspondence_from_file(correspondence_file_path)
                 frame_prev.update_keypoints_using_correspondence(x_prev)
                 frame_curr.update_keypoints_using_correspondence(x_curr)
@@ -153,30 +170,62 @@ def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
                 map_.update_map(X, colors)
                 frames.append(frame_curr)
 
-            optimize_pose_and_map(
-                frames, map_, frame_n - 1
-            )  # Use bundle Adjustment to optimize the frames and map.
+            # visualise_poses_with_gt(
+            #     [frame.RT for frame in frames], cam_parameters, n=frame_n+1
+            # )
+
+            # if len(frames) >2:
+            # optimize_pose_and_map(
+            #     frames, map_
+            # )  # Use bundle Adjustment to optimize the frames and map.
             frame_prev = frames[-1]  # Update prev frame for next Iteration
-            visualise_poses_with_gt(
-                [frame.RT for frame in frames], cam_parameters, n=2
-            )  #
-            visualise_poses_and_3d_points_with_gt(
-                [frame.RT for frame in frames],
-                map_.X[:, :3],
-                cam_parameters,
-                n=2,
-                colors=map_.color,
-            )
+            # visualise_poses_with_gt(
+            #     [frame.RT for frame in frames], cam_parameters, n=frame_n+1
+            # )  #
+            # visualise_poses_and_3d_points_with_gt(
+            #     [frame.RT for frame in frames],
+            #     map_.X[:, :3],
+            #     cam_parameters,
+            #     n=2,
+            #     colors=map_.color,
+            # )
             # print("Number of frames:",len(frames))
             # for frame in frames:
             #     print(frame.RT)
             # visualise_poses_with_gt(
             #         [frame.RT for frame in frames], cam_parameters, n=2
             #     )  # to visualize without 3d points for computational efficiency.
-            break
+            # break
             # visualise_gt_poses(cam_parameters)
-            if frame_n > 3:
-                break
+
+            # if frame_n > 3:
+            #     break
+            # visualise_3d_points(map_.X[:, :3], map_.color)
+            print("3d_pc:", len(map_.X))
+            # if frame_n >3:
+            #     break
+
+    point_cloud = trimesh.PointCloud(vertices=map_.X[:, :3], colors=map_.color)
+    point_cloud.export("./Stage_1/Stage_14/stage1/box/estimated_points.ply")
+    pose_out_path = "./Stage_1/Stage_14/stage1/box/estimated_camera_parameters.json"
+    estimated_pose = {}
+    frame_estimated_pose = {}
+    for frame_n, image_name in enumerate(sorted(os.listdir(image_folder))):
+        frame_estimated_pose[image_name] = frames[frame_n].RT.tolist()
+
+    estimated_pose["extrinsics"] = frame_estimated_pose
+
+    # # Convert NumPy arrays to lists
+    # for key, value in data.items():
+    #     if isinstance(value, np.ndarray):
+    #         data[key] = value.tolist()
+
+    # # Save dictionary to JSON file
+    # with open('data.json', 'w') as json_file:
+    #     json.dump(data, json_file)
+
+    with open(pose_out_path, "w") as fp:
+        json.dump(estimated_pose, fp)
 
 
 # def run_pipeline(cam_parameters, image_folder, correspondence_folder=None):
@@ -268,7 +317,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    root_folder = f"./Stage_1/stage{args.stage}"
+    # root_folder = f"./Stage_1/stage{args.stage}"
+    root_folder = f"./Stage_1/Stage_14/stage1/"
     dataset_folder = os.path.join(root_folder, args.dataset)
     assert os.path.exists(
         dataset_folder

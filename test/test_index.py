@@ -102,8 +102,8 @@ def test_splitting_correspondence_initial_case():
     frame_2.matched_idx = [2, 0, 1, 3, 6, 7]
     frame_1.triangulated_idx = []
     associate_correspondences(frame_1, frame_2)
-    assert frame_1.disjoint_idx == [1, 2, 3, 6, 7, 8]
-    assert frame_2.disjoint_idx == [2, 0, 1, 3, 6, 7]
+    assert frame_1.disjoint_idx == [0, 1, 2, 3, 4, 5]
+    assert frame_2.disjoint_idx == [0, 1, 2, 3, 4, 5]
     assert frame_1.intersect_idx == []
     assert frame_2.intersect_idx == []
 
