@@ -17,6 +17,26 @@ from src.visualize import visualise_pose_and_3d_points
 import random
 
 
+def normalise_points(points):
+    objpoints_mean = np.mean(points, axis=0)
+    tx, ty = objpoints_mean[:2]
+
+    T_o = np.array([[1, 0, -tx], [0, 1, -ty], [0, 0, 1]])
+
+    ## Scaling for average distance of root(2)
+    zero_centered_objpoints = points - objpoints_mean
+    # dist_o = np.linalg.norm(zero_centered_objpoints)
+    dist_o = np.mean(np.linalg.norm(zero_centered_objpoints, axis=1))
+    s = np.sqrt(2) / dist_o
+
+    S_o = np.array([[s, 0, 0], [0, s, 0], [0, 0, 1]])
+
+    norm_op_T = np.matmul(S_o, T_o)  # 3x3 transform to normalize points
+
+    norm_objpoints = np.matmul(norm_op_T, points.T).T
+    return norm_objpoints
+
+
 def camera_points(points, intrinsics):
     # Normalize points by multiplying with the inverse of the intrinsic matrix
     camera_points = np.dot(np.linalg.inv(intrinsics), points.T).T
@@ -39,9 +59,6 @@ def calculate_essential_matrix(points1, points2):
     _, _, V = np.linalg.svd(A)
     E = V[-1].reshape(3, 3)
 
-    # u, s, v = np.linalg.svd(A)
-    # E = v.T[:, -1].reshape(3,3)
-
     # Enforce the rank-2 constraint on E
     U, _, Vt = np.linalg.svd(E)
     E = np.dot(U, np.dot(np.diag([1, 1, 0]), Vt))
@@ -51,14 +68,11 @@ def calculate_essential_matrix(points1, points2):
     return E
 
 
-def ransac_essential_matrix(points1, points2, T=10, threshold=1e-3, k_max=1000):
-    random.seed(0)
+def ransac_essential_matrix(points1, points2, T=10, threshold=0.01, k_max=1000):
+    # random.seed(0)
+    np.random.seed(7)
     best_E = None
     best_inliers = []
-
-    # Convert points to homogeneous coordinates
-    # points1 = np.concatenate([points1, np.ones((points1.shape[0], 1))], axis=1)
-    # points2 = np.concatenate([points2, np.ones((points2.shape[0], 1))], axis=1)
 
     for _ in range(k_max):
         # Step 1: Randomly select a subset S of n data points
@@ -106,18 +120,12 @@ def decompose_essential_matrix(E):
     # Ensure it's a right-handed coordinate system
     if np.linalg.det(np.dot(U, Vt)) < 0:
         Vt = -Vt
-    # if np.linalg.det(U) < 0:
-    #     U *= -1
-    # if np.linalg.det(Vt) < 0:
-    #     Vt *= -1
 
     # Compute rotation matrix
     W = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
     R1 = np.dot(np.dot(U, W), Vt)
     R2 = np.dot(np.dot(U, W.T), Vt)
 
-    # assert np.linalg.det(R1) == 1
-    # assert np.linalg.det(R2) == 1
     # # If the determinant of R is -1, flip the sign of the rotation matrix
     if np.linalg.det(R1) < 0:
         R1 = -R1
@@ -153,7 +161,8 @@ def count_points_in_front_of_both_cameras(x1, x2, K, R, C):
     R1 = np.eye(3)
     RT1 = np.hstack((R1, T1))
     P1 = np.dot(K, RT1)
-    RT2 = np.hstack((R, -np.dot(R, C)))
+    RT2 = np.hstack((R, C))
+    # RT2 = np.hstack((R, -np.dot(R,C)))
     P2 = np.dot(K, RT2)
     X = triangulate_pts(x1, x2, P1, P2)
     transformed_pts = np.dot(R, (X[:, :3].T - C.reshape(3, 1)))
@@ -163,14 +172,14 @@ def count_points_in_front_of_both_cameras(x1, x2, K, R, C):
 
 
 def recover_pose_using_Essential_Mat(points_1, points_2, K):
+
     normalised_points_1 = camera_points(points_1, K)
     normalised_points_2 = camera_points(points_2, K)
+
     E, _ = ransac_essential_matrix(normalised_points_1, normalised_points_2)
     poses = decompose_essential_matrix(E)
     counts = [
-        count_points_in_front_of_both_cameras(
-            normalised_points_1, normalised_points_2, K, R, C
-        )
+        count_points_in_front_of_both_cameras(points_1, points_1, K, R, C)
         for R, C in poses
     ]
     best_pose_index = np.argmax(counts)
@@ -178,32 +187,6 @@ def recover_pose_using_Essential_Mat(points_1, points_2, K):
 
     best_R, best_C = best_pose
     best_T = -np.dot(best_R, best_C)
-    return best_R, best_T
-
-
-def visualize_results(R, t):
-    # Create the projection matrices
-    P_R_t = np.vstack((np.hstack((R, t)), [0, 0, 0, 1]))
-
-    I_0 = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
-
-    # Calculate projection matrices
-    P1 = np.dot(K, I_0)
-    P2 = P_R_t
-
-    # Remove the last row of zeros
-    P1 = P1[:3, :]
-    P2 = P2[:3, :]
-
-    RT1 = np.eye(4)[:3, :]
-    RT2 = P_R_t
-
-    # Triangulate points
-    X = triangulate_pts(points1, points2, P1, P2)
-
-    X = X[:, :3] / X[:, 3:]
-
-    print("X:", X[2, :])
-
-    # Visualize 3D points and camera poses
-    visualise_pose_and_3d_points([RT1, RT2], X[:, :3])
+    RT = np.hstack((best_R, best_C))
+    print(RT)
+    return best_R, best_C

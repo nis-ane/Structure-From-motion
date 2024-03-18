@@ -3,17 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial.distance import cdist
 
-# Load the images
-# img1 = cv2.imread('/Users/hewanshrestha/Desktop/3dcv_project_old/stage2/milk/images/01302.jpg', cv2.IMREAD_GRAYSCALE)
-# img2 = cv2.imread('/Users/hewanshrestha/Desktop/3dcv_project_old/stage2/milk/images/01359.jpg', cv2.IMREAD_GRAYSCALE)
-
-# # Create a SIFT object
-# sift = cv2.SIFT_create()
-
-# # Find the keypoints and descriptors with SIFT
-# kp1, des1 = sift.detectAndCompute(img1, None)
-# kp2, des2 = sift.detectAndCompute(img2, None)
-
 
 def raw_match(descriptors1, descriptors2, dist="euclidean"):
     distances = cdist(descriptors1, descriptors2, dist)
@@ -88,16 +77,6 @@ def match_descriptors(
     return matches
 
 
-# # Use the match function
-# matches = match_descriptors(
-#     descriptors1=des1,
-#     descriptors2=des2,
-#     dist="euclidean",
-#     ratio=0.65,
-#     threshold=150,
-# )
-
-
 def ransac_matching(matches, keypoints1, keypoints2, threshold, max_iterations=1000):
     best_inliers = None
     best_model = None
@@ -135,29 +114,3 @@ def ransac_matching(matches, keypoints1, keypoints2, threshold, max_iterations=1
             best_model = (slope, intercept)
 
     return best_inliers
-
-
-# inliers = ransac_matching(matches, kp1, kp2, threshold=50, max_iterations=1000)
-# print(inliers.shape)
-
-# Load the inliers from the correspondence file
-# inliers = np.loadtxt('inliers.txt', dtype=int)
-
-# Draw matches manually using Matplotlib
-# fig, ax = plt.subplots(figsize=(20.0, 20.0))
-# ax.imshow(np.hstack((img1, img2)), cmap='gray')
-
-# k = 5
-
-# for i, match in enumerate(inliers[:k, :]):
-#     idx1, idx2 = match
-#     pt1 = (int(kp1[idx1].pt[0]), int(kp1[idx1].pt[1]))
-#     pt2 = (int(kp2[idx2].pt[0] + img1.shape[1]), int(kp2[idx2].pt[1]))
-
-#     # Choose a different color for each match
-#     color = plt.cm.nipy_spectral(i / k)
-#     ax.plot([pt1[0], pt2[0]], [pt1[1], pt2[1]], color=color, linewidth=2)
-#     ax.plot(pt1[0], pt1[1], 'yo')  # plot keypoint in the first image
-#     ax.plot(pt2[0], pt2[1], 'ro')  # plot keypoint in the second image
-
-# plt.show()

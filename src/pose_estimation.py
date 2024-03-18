@@ -1,12 +1,21 @@
 """
 This script should implement the estimation of initial pose for frame
-1. Use Essentail matrix decomposition
-2. Linear PnP with 3D-2D correspondence
+1. Estimate Pose using Essential Matrix with 2d-2d correspondence)
+2. Estimate Pose using Linear PnP with 3D-2D correspondence
 """
 from src.utils import *
 from src.visualize import *
 from src.essential_mat import recover_pose_using_Essential_Mat
 import numpy as np
+
+
+def estimate_pose_Essential_Matrix(frame_1, frame_2):
+    points_1 = frame_1.keypoints[frame_1.matched_idx]
+    points_2 = frame_2.keypoints[frame_2.matched_idx]
+
+    R, T = recover_pose_using_Essential_Mat(points_1, points_2, frame_1.K)
+
+    return R, T
 
 
 def cleanup_RT_mat(R, T):
@@ -29,16 +38,17 @@ def decompose_projection_mat(P, K):
     return R_c, T_c
 
 
-def estimate_pose_Essential_Matrix(frame_1, frame_2):
-    points_1 = frame_1.keypoints[frame_1.matched_idx]
-    points_2 = frame_2.keypoints[frame_2.matched_idx]
-
-    R, T = recover_pose_using_Essential_Mat(points_1, points_2, frame_1.K)
-
-    return R, T
-
-
 def estimate_pose_Linear_PnP(x, X, K):
+    """This is Linear Pnp where we first estimate projection matrix
+
+    Args:
+        x (np.array, shape(n,3)): 2D homogeneous coordinates from first image
+        X (np.array, shape(n,4)): 3D homogeneous coordinate in space corresponding to x
+        K (np.array, shape(3,3)): Camera matrix
+
+    Returns:
+        R, T: Pose of the camera
+    """
     assert len(x) == len(X)
     A = np.zeros((0, 12))
     for i in range(len(x)):
@@ -61,6 +71,16 @@ def estimate_pose_Linear_PnP(x, X, K):
 
 
 def estimate_pose_Linear_PnP_n(x, X, K):
+    """This is Linear Pnp where we estimate Rotation and Translation matrix directly
+
+    Args:
+        x (np.array, shape(n,3)): 2D homogeneous coordinates from first image
+        X (np.array, shape(n,4)): 3D homogeneous coordinate in space corresponding to x
+        K (np.array, shape(3,3)): Camera matrix
+
+    Returns:
+        R, T: Pose of the camera
+    """
     assert len(x) == len(X)
     x_normalized = np.dot(np.linalg.inv(K), np.array(x).T).T
     A = np.zeros((0, 12))
@@ -85,7 +105,7 @@ def estimate_pose_Linear_PnP_n(x, X, K):
     return R_c, T_c
 
 
-def estimate_pose_Linear_PnP_RANSAC(x, X, K, threshold=5.0):
+def estimate_pose_Linear_PnP_RANSAC(x, X, K, threshold=2000):
 
     best_inliers = []
 
@@ -96,7 +116,7 @@ def estimate_pose_Linear_PnP_RANSAC(x, X, K, threshold=5.0):
         sample_X = [X[i] for i in sample_indices]
 
         # Compute candidate pose using Linear PnP
-        candidate_R, candidate_T = estimate_pose_Linear_PnP(sample_x, sample_X, K)
+        candidate_R, candidate_T = estimate_pose_Linear_PnP_n(sample_x, sample_X, K)
         candidate_RT = np.hstack((candidate_R, candidate_T))
         candidate_P = np.dot(K, candidate_RT)
 
@@ -107,6 +127,7 @@ def estimate_pose_Linear_PnP_RANSAC(x, X, K, threshold=5.0):
             projected_x = project_3D_to_2D(X[i], candidate_P)
             # Compute reprojection error
             error = np.linalg.norm(projected_x - x[i])
+
             # Check if error is below threshold
             if error < threshold:
                 inliers.append(i)
@@ -116,7 +137,7 @@ def estimate_pose_Linear_PnP_RANSAC(x, X, K, threshold=5.0):
             best_inliers = inliers
 
     # Refine pose estimate using all inliers
-    refined_R, refined_T = estimate_pose_Linear_PnP(
+    refined_R, refined_T = estimate_pose_Linear_PnP_n(
         [x[i] for i in best_inliers], [X[i] for i in best_inliers], K
     )
 
@@ -127,5 +148,5 @@ def estimate_pose_3d_2d_mapping(map_, frame_curr):
     idx_3d = frame_curr.index_kp_3d
     X = map_.X[idx_3d]
     x = frame_curr.keypoints[np.array(frame_curr.matched_idx)[frame_curr.intersect_idx]]
-    R, T = estimate_pose_Linear_PnP(x, X, frame_curr.K)
+    R, T = estimate_pose_Linear_PnP_n(x, X, frame_curr.K)
     return R, T

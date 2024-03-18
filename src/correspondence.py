@@ -71,8 +71,8 @@ from scipy.spatial import distance
 from src.match import match_descriptors, ransac_matching
 import cv2
 
-RATIO_TEST_1_THRESH = 150
-RATIO_TEST_2_THRESH = 0.60
+RATIO_TEST_1_THRESH = 100
+RATIO_TEST_2_THRESH = 0.5
 RANSAC_THRESH = 50
 
 
@@ -98,13 +98,14 @@ def get_2d_to_2d_correspondence(frame_1, frame_2):
         threshold=RATIO_TEST_1_THRESH,
         ratio=RATIO_TEST_2_THRESH,
     )
-    # print(matches.shape)
-    # print(matches)
 
-    # if isinstance(frame_1.keypoints[0], cv2.KeyPoint):
-    #     print("frame_1.keypoints[0] is a cv2.KeyPoint object")
-    # else:
-    #     print("frame_1.keypoints[0] is not a cv2.KeyPoint object")
+    print(matches.shape)
+    print(matches)
+
+    if isinstance(frame_1.keypoints[0], cv2.KeyPoint):
+        print("frame_1.keypoints[0] is a cv2.KeyPoint object")
+    else:
+        print("frame_1.keypoints[0] is not a cv2.KeyPoint object")
 
     inliers = ransac_matching(
         matches,

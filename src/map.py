@@ -15,6 +15,14 @@ class Map:
 
 
 def register_frames_with_map(frame_prev, frame_curr, map_, X):
+    """Associates traingulated 3d point index to the corresponding 2d points
+
+    Args:
+        frame_prev (Frame): First frame used for traingulation
+        frame_curr (Frame): Second frame used for traingulation
+        map_ (Map): map of 3d point clouds
+        X (np.array shape(n, 4)): Current set of traingulated points
+    """
     frame_prev.triangulated_idx = frame_prev.triangulated_idx + list(
         np.array(frame_prev.matched_idx)[frame_prev.disjoint_idx]
     )
@@ -27,17 +35,3 @@ def register_frames_with_map(frame_prev, frame_curr, map_, X):
     frame_curr.index_kp_3d = frame_curr.index_kp_3d + list(
         range(len(map_.X), len(map_.X) + len(X))
     )
-
-
-# def register_frames_with_map(frame_prev, frame_curr, map_, X):
-#     frame_prev.triangulated_idx = frame_prev.triangulated_idx + list(
-#         frame_prev.disjoint_idx)
-#     frame_curr.triangulated_idx = frame_curr.triangulated_idx + list(frame_curr.matched_idx)
-
-#     assert len(frame_prev.disjoint_idx) == len(X)
-#     frame_prev.index_kp_3d = frame_prev.index_kp_3d + list(
-#         range(len(map_.X), len(map_.X) + len(X))
-#     )
-#     frame_curr.index_kp_3d = frame_curr.index_kp_3d + list(
-#         range(len(map_.X), len(map_.X) + len(X))
-#     )

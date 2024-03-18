@@ -1,0 +1,6 @@
+*
+!.gitignore
+!gt_camera_parameters.json
+!gt_mesh.ply
+!estimated_camera_parameters.json
+!estimated_points.ply

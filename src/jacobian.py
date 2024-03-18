@@ -1,6 +1,12 @@
 """
 This script should contain the code for
-1. Bundle Adjustment optimization generic form
+Computing Jacobian matrix
+1. Derivative w.r..t X
+2. Derivative w.r..t C
+3. Derivative w.r..t R
+4. Derivative w.r..t Q(Quaternion)
+5. Compute Jacobian Matrix
+6. Get A and B matrix -> Splitting Jacobian matrix into camera parameters and 3d points
 """
 import numpy as np
 from src.utils import (
@@ -238,43 +244,43 @@ def compute_jacobian(frames, map_):
     return J
 
 
-def compute_A_B(frames, map_):
-    N = len(map_.X)
-    F = len(frames)
+# def compute_A_B(frames, map_):
+#     N = len(map_.X)
+#     F = len(frames)
 
-    J = np.zeros((N * F * 2, N * 3 + F * 7))
-    A = np.zeros((N * 2, F * 7))
-    B = np.zeros((N * 2, F * 3))
+#     J = np.zeros((N * F * 2, N * 3 + F * 7))
+#     A = np.zeros((N * 2, F * 7))
+#     B = np.zeros((N * 2, F * 3))
 
-    for n in range(N):
-        X = map_.X[n][:3].reshape(3, 1)
-        for f in range(F):
-            frame = frames[f]
-            if n in frame.index_kp_3d:
-                A[2 * n : 2 * (n + 1), 7 * f : 7 * (f + 1)] = compute_pose_jacobian_mat(
-                    frame, X
-                )
-                B[2 * n : 2 * (n + 1), 3 * f : 3 * (f + 1)] = compute_X_jacobian_mat(
-                    frame, X
-                )
+#     for n in range(N):
+#         X = map_.X[n][:3].reshape(3, 1)
+#         for f in range(F):
+#             frame = frames[f]
+#             if n in frame.index_kp_3d:
+#                 A[2 * n : 2 * (n + 1), 7 * f : 7 * (f + 1)] = compute_pose_jacobian_mat(
+#                     frame, X
+#                 )
+#                 B[2 * n : 2 * (n + 1), 3 * f : 3 * (f + 1)] = compute_X_jacobian_mat(
+#                     frame, X
+#                 )
 
-            else:
-                continue
+#             else:
+#                 continue
 
-    return A, B
-
-
-# def compute_A_B(frames, map_, viewpoints_indices, point_indices):
-#     N = len(viewpoints_indices)
-#     A = np.zeros((N,2,7))
-#     B = np.zeros((N,2,3))
-#     print(A.shape)
-#     print(B.shape)
-#     for n, (i, j) in enumerate(zip(point_indices, viewpoints_indices)):
-#         X = map_.X[i][:3].reshape(3,1)
-#         A[n] = compute_pose_jacobian_mat(frames[j],X)
-#         B[n] = compute_X_jacobian_mat(frames[j], X)
 #     return A, B
+
+
+def compute_A_B(frames, map_, viewpoints_indices, point_indices):
+    N = len(viewpoints_indices)
+    A = np.zeros((N, 2, 7))
+    B = np.zeros((N, 2, 3))
+    print(A.shape)
+    print(B.shape)
+    for n, (i, j) in enumerate(zip(point_indices, viewpoints_indices)):
+        X = map_.X[i][:3].reshape(3, 1)
+        A[n] = compute_pose_jacobian_mat(frames[j], X)
+        B[n] = compute_X_jacobian_mat(frames[j], X)
+    return A, B
 
 
 def compute_reprojection_errors(frames, map_):
@@ -395,7 +401,6 @@ def compute_S_mat(U, W, Y, F, N):
 
 
 def compute_delta_pose(S, e_j):
-    # del_pose = np.dot(np.linalg.inv(S), e_j)
     del_pose = spsolve(S, e_j)
     return del_pose
 
@@ -421,33 +426,23 @@ def optimize_using_BA(frames, map_):
     U, V, W, Y, e_a, e_b = compute_U_V_W_Y_ea_eb(frames, map_)
     e_j = compute_epsilon_j(e_a, e_b, Y, F, N)
     S = compute_S_mat(U, W, Y, F, N)
-    # print("Rank:", np.linalg.matrix_rank(S))
-    orig_map = plt.cm.get_cmap("gray")
-
-    # reversing the original colormap using reversed() function
-    reversed_map = orig_map.reversed()
-    # plt.imshow(S, cmap=reversed_map)
-    # plt.show()
     del_pose = compute_delta_pose(S, e_j)
     del_X = compute_delta_X(del_pose, V, W, e_b, F, N)
-    # print(del_pose)
-    # print(del_X)
 
-    # for f, frame in enumerate(frames):
-    #     Q = rotation_matrix_to_quaternion(frame.R)
-    #     frame_updates = del_pose[7*f: 7*(f+1)]
-    #     new_Q = Q + frame_updates[0:4]
-    #     norm = np.linalg.norm(new_Q)
-    #     if np.isclose(norm, 0.0):
-    #         raise ValueError("Cannot normalize quaternion with zero norm")
-    #     new_Q = new_Q / norm
-    #     # print(np.linalg.norm(new_Q))
+    for f, frame in enumerate(frames):
+        Q = rotation_matrix_to_quaternion(frame.R)
+        frame_updates = del_pose[7 * f : 7 * (f + 1)]
+        new_Q = Q + frame_updates[0:4]
+        norm = np.linalg.norm(new_Q)
+        if np.isclose(norm, 0.0):
+            raise ValueError("Cannot normalize quaternion with zero norm")
+        new_Q = new_Q / norm
 
-    #     new_R = quaternion_to_rotation_matrix(new_Q)
-    #     new_C = frame.C + frame_updates[4:7].reshape(3,1)
-    #     new_T = -np.dot(new_R, new_C)
-    #     frame.R = new_R
-    #     frame.T = new_T
-    #     frame.compute_projection_matrix()
+        new_R = quaternion_to_rotation_matrix(new_Q)
+        new_C = frame.C + frame_updates[4:7].reshape(3, 1)
+        new_T = -np.dot(new_R, new_C)
+        frame.R = new_R
+        frame.T = new_T
+        frame.compute_projection_matrix()
 
     map_.X[:, :3] = map_.X[:, :3] - del_X.reshape(len(map_.X), 3)

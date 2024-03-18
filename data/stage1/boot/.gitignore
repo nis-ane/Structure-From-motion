@@ -1,0 +1,5 @@
+*
+!.gitignore
+!camera_parameters.json
+!estimated_camera_parameters.json
+!estimated_points.ply
