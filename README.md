@@ -54,3 +54,8 @@ python -m src.pipeline -d "boot" -s 1 -t 0
 -  -s, --stage STAGE:
                         Stage of Project. The resources precomputed assumption is based on the stage of project. For example if stage is 1 we dont carry out feature detection and matching
 -  -t, --gt GT :         Whether gt is available or not. This is used for specifying the camera parameter file.
+
+
+# Outputs
+
+The generated outputs can be found under the respective dataset folder inside the **data** directory.
