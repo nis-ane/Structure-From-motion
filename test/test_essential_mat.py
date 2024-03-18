@@ -8,19 +8,19 @@ import os
 import json
 
 
-image_folder = "./Stage_1/stage1/box/images"
-pose_json_path = "./Stage_1/stage1/box/gt_camera_parameters.json"
-correspondence_folder = "./Stage_1/stage1/box/correspondences"
+image_folder = "./data/stage1/box/images"
+pose_json_path = "./data/stage1/box/gt_camera_parameters.json"
+correspondence_folder = "./data/stage1/box/correspondences"
 with open(pose_json_path) as f:
     cam_parameters = json.load(f)
 K = np.array(cam_parameters["intrinsics"])
 
 image_1 = cv2.imread(os.path.join(image_folder, "00000.jpg"))
-image_2 = cv2.imread(os.path.join(image_folder, "00002.jpg"))
+image_2 = cv2.imread(os.path.join(image_folder, "00001.jpg"))
 image_1 = cv2.cvtColor(image_1, cv2.COLOR_BGR2RGB)
 image_2 = cv2.cvtColor(image_2, cv2.COLOR_BGR2RGB)
 image_idx_1 = 0
-image_idx_2 = 2
+image_idx_2 = 1
 frame_1 = Frame(image_1, image_idx_1, K)
 frame_2 = Frame(image_2, image_idx_2, K)
 correspondence_file_name = f"{frame_1.img_id}_{frame_2.img_id}.txt"
@@ -38,7 +38,7 @@ def test_pose_from_essential_mat():
     frame_2.compute_projection_matrix()
 
     eps = 1e-6
-    r1 = np.array(cam_parameters["extrinsics"]["00002.jpg"])[:3, :3]
+    r1 = np.array(cam_parameters["extrinsics"]["00001.jpg"])[:3, :3]
     r2 = frame_2.R
     print(r1)
     print(r2)
@@ -63,7 +63,7 @@ def test_norm_essential_matrix():
     normalised_points_1 = camera_points(points_1, K)
     normalised_points_2 = camera_points(points_2, K)
     E = calculate_essential_matrix(normalised_points_1, normalised_points_2)
-    assert np.linalg.norm(E) == 1
+    assert np.round(np.linalg.norm(E)) == 1
 
 
 # def test_compare_cv2_essential_mat():

@@ -6,8 +6,8 @@ import cv2
 import os
 import json
 
-image_folder = "./Stage_1/stage1/box/images"
-pose_json_path = "./Stage_1/stage1/box/gt_camera_parameters.json"
+image_folder = "./data/stage1/box/images"
+pose_json_path = "./data/stage1/box/gt_camera_parameters.json"
 with open(pose_json_path) as f:
     cam_parameters = json.load(f)
 K = np.array(cam_parameters["intrinsics"])
