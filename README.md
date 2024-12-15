@@ -1,6 +1,6 @@
 # 3DCV_Project
 
-This project basically is the implementation of Structure from motion pipeline. It takes set of images and then generates the pose of frames and the 3d point cloud.
+This project is done as a part of Course:3D computer Vision. It is basically is the implementation of Structure from motion pipeline from scratch. It takes set of images and then generates the pose of frames and the 3d point cloud.
 
 # Steps carried out in the Pipeline:
 ## 1. Estimation of 2d-2d correspondences
