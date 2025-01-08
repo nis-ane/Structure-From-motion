@@ -152,5 +152,5 @@ The generated outputs can be found under the respective dataset folder inside th
 
 ## Team Members
 1. [Nischal Maharjan](https://www.nischalmaharjan.info.np/)
-2. Hevra Petekkaya
+2. [Hevra Petekkaya](linkedin.com/in/hevra-petekkaya-b451881bb)
 3. [Hewan Shrestha](https://hewanshrestha.github.io/)
